@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông tin tỉnh Hà Giang</title>
+    <link rel="stylesheet" href="https://openlayers.org/en/v6.13.0/css/ol.css" type="text/css">
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: white;
+        }
+        header {
+            background: green;
+            color: yellow;
+            padding: 10px 0;
+            text-align: center;
+            width: 100%;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 36px;
+        }
+        .sidebar-container {
+            background-color: white;
+            width: 20%;
+            padding: 20px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-left: auto;
+            text-align: center;
+        }
+        .additional-column {
+            background-color: white;
+            width: 20%;
+            padding: 20px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-left: auto;
+            margin-bottom: 20px;
+        }
+        .additional-column img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+        }
+        .sidebar h2 {
+            font-size: 18px;
+            text-align: center;
+            margin-top: 0;
+        }
+        .sidebar-container h2 {
+            font-size: 14px; /* Đặt kích thước font là 14px */
+            margin-top: 0;
+        }
+        .additional-column-wrapper {
+            width: 20%;
+            padding: 20px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-left: auto;
+            margin-bottom: 20px;
+        }
+        .additional-column-wrapper h2 {
+            font-size: 18px;
+            margin-top: 0;
+        }
+        #map {
+            width: 78%;
+            height: 90vh;
+            margin: 0;
+            margin-left: 0;
+            position: relative;
+            top: -650px
+        }
+    </style>
+    <script src="https://openlayers.org/en/v6.13.0/build/ol.js"></script>
+</head>
+<body>
+    <header>
+        <h1>BẢN ĐỒ HÀNH CHÍNH CƠ BẢN CẤP HUYỆN TỈNH HÀ GIANG</h1>
+    </header>
+    
+    <div class="sidebar-container">
+        <h2>Bảng phân biệt hành chính</h2>
+        <p></p>
+        <p></p>
+    </div>
+
+    <div class="additional-column">
+        <img src="districts_color.png" alt="Ảnh mô tả" />
+    </div>
+
+    <div class="additional-column-wrapper">
+        <div class="search-box">
+            <input type="text" placeholder="Nhập tên huyện cần tìm">
+            <button class="submit">Tìm</button>
+        </div>
+
+        <div class="largest-district-button">
+            <button id="largestDistrictButton" class="submit">Ấn vào đây để biết huyện có diện tích lớn nhất</button>
+        </div>
+
+        <div class="smallest-district-button">
+            <button class="submit">Ấn vào đây để biết huyện có diện tích nhỏ nhất</button>
+        </div>
+
+        <div class="search-box-two">
+            <input type="text" id="district-name-two" placeholder="Nhập tên huyện cần tìm">
+            <button class="submit" id="search-button-two">Xem diện tích</button>
+        </div>
+
+        <div class="search-box-three">
+            <input type="text" placeholder="Nhập huyện cần tìm">
+            <button class="submit">Xem các huyện giáp danh</button>
+        </div>
+
+        <div class="search-box">
+            <input type="text" placeholder="Nhập địa điểm cần tìm">
+            <button class="submit">Tìm</button>
+        </div>
+    </div>
+
+    <div id="map" class="map"></div>
+    <script type="text/javascript">
+        // Khởi tạo bản đồ OpenLayers
+        var map = new ol.Map({
+            target: 'map',
+            layers: [
+                // Thêm lớp tile OpenStreetMap làm nền
+                new ol.layer.Tile({
+                    source: new ol.source.OSM()
+                }),
+                // Thêm lớp WMS từ GeoServer
+                new ol.layer.Tile({
+                    source: new ol.source.TileWMS({
+                        url: 'http://localhost:8080/geoserver/HaGiang6/wms',
+                        params: {
+                            'LAYERS': 'HaGiang6:HaGiangFinalWeb1',
+                            'TILED': true,
+                            'VERSION': '1.1.0',
+                            'FORMAT': 'image/png'
+                        },
+                        serverType: 'geoserver'
+                    })
+                })
+            ],
+            view: new ol.View({
+                center: ol.proj.fromLonLat([105.0, 22.8]), // Điều chỉnh tọa độ trung tâm
+                zoom: 8 // Điều chỉnh mức độ zoom mặc định
+            })
+        });
+
+        // Hàm để zoom đến tọa độ huyện
+        function zoomToDistrict(lon, lat) {
+            var view = map.getView();
+            var duration = 2000;
+            view.animate({
+                center: ol.proj.fromLonLat([lon, lat]),
+                duration: duration,
+                zoom: 12
+            });
+        }
+
+        // Sự kiện nhấn nút để lấy huyện có diện tích lớn nhất
+        document.getElementById('largestDistrictButton').addEventListener('click', function() {
+            fetch('http://localhost:4000/api/largest-district')
+                .then(response => response.json())
+                .then(data => {
+                    alert(`Huyện có diện tích lớn nhất tỉnh Hà Giang: ${data.NAME_2}, Diện tích: ${data.AREA_ACREA}`);
+                    // Cập nhật tọa độ chính xác của huyện Vị Xuyên
+                    zoomToDistrict(104.8954, 22.7752);
+                })
+                .catch(error => console.error('Error:', error));
+        });
+
+        //Sự kiện nhấn nút để lấy huyện có diện tích nhỏ nhất:
+        document.querySelector('.smallest-district-button button').addEventListener('click', function() {
+        fetch('http://localhost:4000/api/smallest-district')
+            .then(response => response.json())
+            .then(data => {
+                alert(`Huyện có diện tích nhỏ nhất tỉnh Hà Giang: Thành phố ${data.NAME_2}, Diện tích: ${data.AREA_ACREA}`);
+                // Thực hiện các hành động khác nếu cần thiết sau khi nhận dữ liệu
+                // Ví dụ: cập nhật bản đồ để zoom đến huyện này
+                zoomToDistrict(104.954546282697, 22.762034266519);
+            })
+            .catch(error => console.error('Error:', error));
+        });
+         // Sự kiện nhấn nút để lấy diện tích của huyện
+         document.getElementById('search-button-two').addEventListener('click', function() {
+            const districtName = document.getElementById('district-name-two').value;
+            fetch('http://localhost:4000/api/find-district-area', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ districtName }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data) {
+                    alert(`Huyện ${data.NAME_2}, Diện tích: ${data.district_area}`);
+                } else {
+                    alert('Không tìm thấy huyện này');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+    </script>
+</body>
+</html>
